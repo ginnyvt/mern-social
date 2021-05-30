@@ -1,10 +1,17 @@
 import React from 'react';
+import { BrowserRouter } from 'react-router-dom';
+import { ThemeProvider } from '@material-ui/core/styles';
+
+import MainRouter from './MainRouter';
+import theme from './theme';
 
 const App = () => {
   return (
-    <div>
-      <h3>Welcome to MERN Social</h3>
-    </div>
+    <BrowserRouter>
+      <ThemeProvider theme={theme}>
+        <MainRouter />
+      </ThemeProvider>
+    </BrowserRouter>
   );
 };
 
