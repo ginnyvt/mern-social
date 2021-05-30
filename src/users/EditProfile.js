@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Redirect } from 'react-router-dom';
-import { signin } from './auth-api';
-import auth from './auth-helper';
+
+import { read, update } from './user-api';
+import auth from '../auth/auth-helper';
 
 import { makeStyles } from '@material-ui/core/styles';
 import Card from '@material-ui/core/Card';
@@ -20,12 +21,12 @@ const useStyles = makeStyles((theme) => ({
     marginTop: theme.spacing(5),
     paddingBottom: theme.spacing(2),
   },
+  title: {
+    margin: theme.spacing(2),
+    color: theme.palette.protectedTitle,
+  },
   error: {
     verticalAlign: 'middle',
-  },
-  title: {
-    marginTop: theme.spacing(2),
-    color: theme.palette.openTitle,
   },
   textField: {
     marginLeft: theme.spacing(1),
@@ -38,14 +39,41 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const Signin = (props) => {
+const EditProfile = ({ match }) => {
   const classes = useStyles();
   const [values, setValues] = useState({
+    name: '',
     email: '',
     password: '',
     error: '',
-    redirectToReferrer: false,
+    open: false,
+    redirectToProfile: false,
   });
+  const jwt = auth.isAuthenticated();
+
+  useEffect(() => {
+    const abortController = new AbortController();
+    const signal = abortController.signal;
+
+    read({ userId: match.params.userId }, { token: jwt.token }, signal).then(
+      (data) => {
+        if (data && data.error) {
+          setValues({ ...values, error: data.error });
+        } else {
+          const user = data.user;
+          setValues({
+            ...values,
+            name: user.name,
+            email: user.email,
+          });
+        }
+      }
+    );
+
+    return () => {
+      abortController.abort();
+    };
+  }, [match.params.userId]);
 
   const inputChangeHandler = (e) => {
     setValues({ ...values, [e.target.name]: e.target.value });
@@ -54,44 +82,43 @@ const Signin = (props) => {
   const submitHandler = (e) => {
     e.preventDefault();
     const user = {
+      name: values.name || undefined,
       email: values.email || undefined,
       password: values.password || undefined,
     };
 
-    signin(user).then((data) => {
-      console.log(data);
-      if (data && data.error) {
-        setValues({ ...values, error: data.error });
-      } else {
-        // console.log(data.token);
-        auth.authenticate(data, () => {
+    update({ userId: match.params.userId }, { token: jwt.token }, user).then(
+      (data) => {
+        if (data && data.error) {
+          setValues({ ...values, error: data.error });
+        } else {
           setValues({
             ...values,
-            error: '',
-            redirectToReferrer: true,
+            userId: data.user._id,
+            redirectToProfile: true,
           });
-        });
+        }
       }
-    });
+    );
   };
 
-  const { from } = props.location.state || {
-    from: {
-      pathname: '/',
-    },
-  };
-
-  if (values.redirectToReferrer) {
-    return <Redirect to={from} />;
+  if (values.redirectToProfile) {
+    return <Redirect to={`/user/${values.userId}`} />;
   }
-
   return (
     <Card className={classes.card}>
-      <CardContent>
-        <Typography variant='h6' className={classes.title}>
-          Sign In
-        </Typography>
+      <CardContent variant='h6' className={classes.title}>
+        <Typography>Edit Profile</Typography>
 
+        <TextField
+          className={classes.textField}
+          name='name'
+          label='Name'
+          onChange={inputChangeHandler}
+          value={values.name}
+          margin='normal'
+        />
+        <br />
         <TextField
           className={classes.textField}
           type='email'
@@ -102,7 +129,6 @@ const Signin = (props) => {
           margin='normal'
         />
         <br />
-
         <TextField
           className={classes.textField}
           type='password'
@@ -138,4 +164,4 @@ const Signin = (props) => {
   );
 };
 
-export default Signin;
+export default EditProfile;
